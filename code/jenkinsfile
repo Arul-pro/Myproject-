@@ -2,7 +2,7 @@ pipeline{
     agent any
     environment{
         IMAGE_NAME = "arulgun/mddevopsmasterclass:${GIT_COMMIT}"
-        } // <-- Fixed: Added missing closing brace for environment
+        } 
        
     stages{
         stage('Git-Checkout'){
@@ -50,8 +50,7 @@ pipeline{
         
                     }
                 }
-                    }
-                }
-            }        
-    }
-}
+                    
+                
+                
+    

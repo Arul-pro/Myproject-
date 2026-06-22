@@ -34,17 +34,48 @@ pipeline {
             }
         }
 
-        stage('Pushing to Registry'){
-            steps{
-                sh '''
-                    docker push ${IMAGE_NAME}
-                '''
+        stage('Pushing to Registry') {
+            steps {
+                sh 'docker push ${IMAGE_NAME}'
             }
         }
-        
-                    }
+
+        stage('Deploy to EKS Cluster') {
+            steps {
+                // Native Jenkins Kubernetes wrapping block
+                withKubeConfig(
+                    caCertificate: '', 
+                    clusterName: "${CLUSTER_NAME}", 
+                    contextName: '', 
+                    credentialsId: 'kube', 
+                    namespace: "${NAMESPACE}", 
+                    restrictKubeConfigAccess: false, 
+                    serverUrl: "${EKS_ENDPOINT}"
+                ) {
+                    sh '''
+                        cd code/
+                        if [ -f deployment.yaml ]; then
+                            echo "Updating manifest with target image tag: ${IMAGE_NAME}"
+                            
+                            # Update the image tag directly in the deployment file
+                            sed -i "s|image:.*|image: ${IMAGE_NAME}|g" deployment.yaml
+                            
+                            # Apply the changes safely using the secure context active inside this block
+                            kubectl apply -f deployment.yaml
+                        else
+                            echo "ERROR: deployment.yaml file missing under code/ directory."
+                            exit 1
+                        fi
+                    '''
                 }
-                    
-                
-                
-    
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up the local agent docker cache to save disk space
+            sh 'docker rmi ${IMAGE_NAME} || true'
+        }
+    }
+}
